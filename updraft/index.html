@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>UPDRAFT</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="gameCanvas" aria-label="UPDRAFT game canvas"></canvas>
+
+    <!-- Top Minimalist HUD -->
+    <header id="hud" class="hud hidden" aria-live="polite">
+      <div class="hud-left">
+        <div class="pill best-pill" title="Best Score">
+          <span class="pill-label">BEST</span>
+          <span id="hudBest" class="pill-value">0</span>
+        </div>
+        <div id="hudDraftPill" class="pill draft-pill" title="Pipes until next Draft or Loadout Reset">
+          <span id="hudDraftLabel" class="pill-label">DRAFT</span>
+          <span id="hudDraftCount" class="pill-value">0/10</span>
+          <span class="draft-bar-track">
+            <span id="hudDraftFill" class="draft-bar-fill"></span>
+          </span>
+        </div>
+        <div id="hudSlotsPill" class="pill slots-pill" title="Active Modifiers (resets to 0 at next milestone once 3 are active)">
+          <span class="pill-label">LOADOUT</span>
+          <span id="hudSlotsCount" class="pill-value">0/3</span>
+        </div>
+      </div>
+
+      <div class="hud-center">
+        <div id="hudScore" class="score-display">0</div>
+      </div>
+
+      <div class="hud-right">
+        <button id="btnMute" class="icon-btn" title="Toggle Sound (M)" aria-label="Toggle Sound">
+          <svg id="iconSoundOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+          <svg id="iconSoundOff" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </svg>
+        </button>
+        <button id="btnPause" class="icon-btn" title="Pause (P / Esc)" aria-label="Pause Game">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="4" width="4" height="16" rx="1"></rect>
+            <rect x="14" y="4" width="4" height="16" rx="1"></rect>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Active Perks & Debuffs Dock -->
+    <div id="modifiersDock" class="modifiers-dock hidden"></div>
+
+    <!-- Center Toast / Ready Prompt -->
+    <div id="readyPrompt" class="ready-prompt hidden">
+      <div class="ready-pill">
+        <span class="pulse-dot"></span>
+        <span id="readyText">TAP OR PRESS SPACE TO FLY</span>
+      </div>
+    </div>
+
+    <!-- Title Menu Overlay -->
+    <section id="titleOverlay" class="overlay visible">
+      <div class="glass-panel title-panel">
+        <div class="eyebrow">ROGUELITE ARCADE</div>
+        <h1 class="wordmark">UPDRAFT</h1>
+        <p class="tagline">
+          Draft every <strong>10 pipes</strong> — <strong>35%</strong> curse rate (<strong>50%</strong> past 30). Hold <strong>3 active mods</strong> and your loadout wipes clean at the next milestone.
+        </p>
+
+        <div class="title-stats">
+          <div class="stat-chip">
+            <span class="stat-k">BEST SCORE</span>
+            <span id="titleBest" class="stat-v">0</span>
+          </div>
+          <div class="stat-chip">
+            <span class="stat-k">RESET CAP</span>
+            <span class="stat-v">3 MODS</span>
+          </div>
+          <div class="stat-chip">
+            <span class="stat-k">CURSE RATE</span>
+            <span class="stat-v">35→50%</span>
+          </div>
+        </div>
+
+        <div class="actions-row">
+          <button id="btnPlay" class="btn btn-primary">
+            <span>PLAY</span>
+            <kbd>SPACE</kbd>
+          </button>
+          <button id="btnCodex" class="btn btn-ghost">CODEX</button>
+        </div>
+
+        <div class="controls-hint">
+          <span><kbd>SPACE</kbd> / Click to Flap</span>
+          <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> Pick Draft</span>
+          <span><kbd>P</kbd> Pause</span>
+          <span><kbd>M</kbd> Mute</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Draft Modal Overlay (Every 10 Pipes) -->
+    <section id="draftOverlay" class="overlay">
+      <div id="draftPanel" class="glass-panel draft-panel">
+        <div class="draft-header">
+          <span id="draftBadge" class="draft-badge">MILESTONE · PIPE 10</span>
+          <h2 id="draftTitle" class="draft-title">CHOOSE AN UPDRAFT</h2>
+          <p id="draftSubtitle" class="draft-subtitle">Select one perk to shape your run</p>
+        </div>
+        <div id="draftCards" class="draft-cards"></div>
+      </div>
+    </section>
+
+    <!-- Pause Overlay -->
+    <section id="pauseOverlay" class="overlay">
+      <div class="glass-panel compact-panel">
+        <div class="eyebrow">FLIGHT PAUSED</div>
+        <h2 class="panel-heading">Take a Breather</h2>
+        <div class="actions-col">
+          <button id="btnResume" class="btn btn-primary">
+            <span>RESUME</span>
+            <kbd>P</kbd>
+          </button>
+          <button id="btnPauseRestart" class="btn btn-ghost">RESTART RUN</button>
+          <button id="btnPauseMenu" class="btn btn-subtle">MAIN MENU</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Game Over Overlay -->
+    <section id="gameOverOverlay" class="overlay">
+      <div class="glass-panel gameover-panel">
+        <div class="gameover-head">
+          <span id="newBestBadge" class="new-best-badge hidden">NEW BEST</span>
+          <div class="eyebrow">FLIGHT ENDED</div>
+          <h2 class="panel-heading">Run Summary</h2>
+        </div>
+
+        <div class="summary-grid">
+          <div class="summary-card accent">
+            <span class="summary-label">SCORE</span>
+            <span id="goScore" class="summary-value">0</span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-label">BEST</span>
+            <span id="goBest" class="summary-value">0</span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-label">PIPES</span>
+            <span id="goPipes" class="summary-value">0</span>
+          </div>
+          <div class="summary-card">
+            <span class="summary-label">DRAFTS</span>
+            <span id="goDrafts" class="summary-value">0</span>
+          </div>
+        </div>
+
+        <div id="goBuildSection" class="build-section hidden">
+          <div class="build-label">ACTIVE BUILD</div>
+          <div id="goBuildList" class="build-list"></div>
+        </div>
+
+        <div class="actions-row">
+          <button id="btnRetry" class="btn btn-primary">
+            <span>FLY AGAIN</span>
+            <kbd>SPACE</kbd>
+          </button>
+          <button id="btnGoMenu" class="btn btn-ghost">MENU</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Codex Overlay -->
+    <section id="codexOverlay" class="overlay">
+      <div class="glass-panel codex-panel">
+        <div class="codex-header">
+          <div>
+            <div class="eyebrow">FIELD GUIDE</div>
+            <h2 class="panel-heading">Perks &amp; Headwinds</h2>
+          </div>
+          <button id="btnCloseCodex" class="icon-btn" aria-label="Close Codex">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="codex-tabs">
+          <button id="tabPerks" class="codex-tab active">Perks (20)</button>
+          <button id="tabDebuffs" class="codex-tab">Headwinds (10)</button>
+        </div>
+        <div id="codexGrid" class="codex-grid"></div>
+      </div>
+    </section>
+  </div>
+
+  <script defer src="game.js"></script>
+</body>
+</html>
